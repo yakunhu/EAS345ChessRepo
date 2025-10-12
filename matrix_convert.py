@@ -37,7 +37,7 @@ with open(file_path, 'r') as file:
                     j+=1
                 i+=1
             # print(matrix)
-            coords = np.array([4,6])
+            # coords = np.array([4,6])
             factor_7 = total_effect.total_effect(matrix)  
             data = [row_array[0],row_array[1],"N/A","N/A","N/A","N/A","N/A","N/A",str(factor_7)]
             writer.writerow(data)
