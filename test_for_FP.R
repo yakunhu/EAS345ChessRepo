@@ -36,3 +36,4 @@ filtered_chess_puzzles$Rating <- NULL
 file_path <- "filtered_lichess.csv"
 write.csv(filtered_chess_puzzles, file = file_path, row.names = FALSE)
 
+

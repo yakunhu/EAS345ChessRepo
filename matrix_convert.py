@@ -2,7 +2,8 @@ import numpy as np
 import csv
 import total_effect
 
-file_path = "filtered_lichess/filtered_lichess_small.csv"
+#file_path = "filtered_lichess/filtered_lichess_small.csv"
+file_path = "filtered_lichess_small.csv"
 with open(file_path, 'r') as file:
     lines = file.readlines()[1:]
     with open("factors_proc.csv", mode="w",newline='',encoding='utf-8') as out_file:
