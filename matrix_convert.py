@@ -2,6 +2,7 @@ import numpy as np
 import csv
 import total_effect
 import central_effect 
+import factor3
 
 #file_path = "filtered_lichess/filtered_lichess_small.csv"
 file_path = "filtered_lichess_small.csv"
@@ -11,7 +12,11 @@ with open(file_path, 'r') as file:
         writer = csv.writer(out_file)
         header = ["ID","FEN","1","2","3","4","5","6","7"]
         writer.writerow(header)
+        row_num = 0
         for row in lines:
+            if row_num == 0:
+                row_num += 1
+                continue 
             row_array = row.split(',')
             FEN = row_array[1]
             bp = ""
@@ -41,7 +46,9 @@ with open(file_path, 'r') as file:
             # print(matrix)
             # coords = np.array([4,6])
             factor_2 = central_effect.central_effect(matrix)
-            factor_7 = total_effect.total_effect(matrix)  
+            factor_7 = total_effect.total_effect(matrix) 
+            factor_3 = factor3.total_control(matrix) 
+            print(factor_3)
             data = [row_array[0],row_array[1],"N/A",str(factor_2),"N/A","N/A","N/A","N/A",str(factor_7)]
             writer.writerow(data)
             break
