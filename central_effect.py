@@ -1,5 +1,7 @@
 import numpy as np
 
+central_squares = np.array([[3,3],[3,4],[4,3],[4,4]])
+
 def N_Effect(coords,matrix):
     # print(coords)
     effects = 0
@@ -12,13 +14,14 @@ def N_Effect(coords,matrix):
     eight = np.array([rank+1,file-2])
     ten = np.array([rank-1,file-2])
     eleven = np.array([rank-2,file-1])
-    movements = np.array([one,two,four,five,seven,eight,ten,eleven])
-    for direction in movements:
-        if direction[0] <=7 and direction[0] >=0 and direction[1] <=7 and direction[1] >=0:
-            if matrix[direction[0],direction[1]] != "":
-                # print(matrix[direction[0],direction[1]])
-                # print(direction[0],direction[1])
+    moves = np.array([one,two,four,five,seven,eight,ten,eleven])
+    for dest in moves:
+        if dest[0] <=7 and dest[0] >=0 and dest[1] <=7 and dest[1] >=0:
+            # print(dest==central_squares)
+            if np.all(dest==central_squares,axis=1).any():
+                # print(dest)
                 effects+=1
+    # print(coords)
     # print(effects)
     return effects
 
@@ -38,8 +41,12 @@ def V_Effect(coords, matrix):
     for dr, df in movements:
         r, f = rank + dr, file + df
         while 0 <= r <= 7 and 0 <= f <= 7:
-            if matrix[r, f] != "":
+            dest = np.array([r,f])
+            if np.all(dest==central_squares,axis=1).any():
+                # print(coords)
+                # print(dest)
                 effects += 1
+            if matrix[r,f] != "":
                 break
             r += dr
             f += df
@@ -48,8 +55,7 @@ def V_Effect(coords, matrix):
 def D_Effect(position, matrix):
 
     # Get the row and col of the piece
-    row = position[0]
-    col = position[1]
+    row, col = position
 
     directions = [
         (-1, -1),  # northwest (up-left)
@@ -69,8 +75,12 @@ def D_Effect(position, matrix):
         # Keep looping as long as r and c are valid board coordinates (between 0 and 7)
         while 0 <= r <= 7 and 0 <= c <= 7:
             # If we find a piece count it and stop this direction
-            if matrix[r, c] != "":
+            dest = np.array([r,c])
+            if np.all(dest==central_squares,axis=1).any():
+                # print(position)
+                # print(dest)
                 effects += 1
+            if matrix[r, c] != "":
                 break
             # Move one more step along the same diagonal
             r += row_step
@@ -90,12 +100,11 @@ def K_Effect(coords, matrix):
     NE = np.array([rank-1,file+1])
     SW = np.array([rank+1,file-1])
     SE = np.array([rank+1,file+1])
-    movements = np.array([N,S,E,W,NW,NE,SW,SE])
-    for direction in movements:
-        if direction[0] <=7 and direction[0] >=0 and direction[1] <=7 and direction[1] >=0:
-            if matrix[direction[0],direction[1]] != "":
-                # print(matrix[direction[0],direction[1]])
-                # print(direction[0],direction[1])
+    moves = np.array([N,S,E,W,NW,NE,SW,SE])
+    for dest in moves:
+        if dest[0] <=7 and dest[0] >=0 and dest[1] <=7 and dest[1] >=0:
+            if np.all(dest==central_squares,axis=1).any():
+                # print(dest)
                 effects+=1
     # print(coords)
     # print(effects)
@@ -127,14 +136,16 @@ def P_Effect(coords, matrix):
         ])
 
     for r, f in movements:
-        if 0 <= r <= 7 and 0 <= f <= 7:       # on board
-            if matrix[r, f] != "":            # occupied → count
+        if 0 <= r <= 7 and 0 <= f <= 7: 
+            dest = np.array([r,f])      # on board
+            if np.all(dest==central_squares,axis=1).any():            # occupied → count
+                # print(dest)
                 effects += 1
     # print(coords)
     # print(effects)
     return effects
 
-def total_effect(matrix):
+def central_effect(matrix):
     w_E = 0
     b_E = 0
     i = 0
@@ -173,7 +184,7 @@ def total_effect(matrix):
                         b_E += P_Effect(np.array([i,j]),matrix)
             j+=1
         i+=1
-    # print(w_E)
-    # print(b_E)
+    print(w_E)
+    print(b_E)
     return w_E - b_E
 
