@@ -177,5 +177,3 @@ def total_effect(matrix):
     # print(b_E)
     return w_E - b_E
 
-
-

@@ -43,4 +43,19 @@ def total_control(matrix):
     for rank in matrix:
         j = 0
         for piece in rank:
-         
+            if piece != "":
+                if piece.isupper():
+                    if piece == "Q":
+                        w_E += D_Control(np.array([i, j]), matrix)
+                    if piece == "B":
+                        w_E += D_Control(np.array([i, j]), matrix)
+                else:
+                    if piece == "q":
+                        b_E += D_Control(np.array([i, j]), matrix)
+                    if piece == "b":
+                        b_E += D_Control(np.array([i, j]), matrix)
+            j+=1
+        i+=1
+    print(w_E)
+    print(b_E)
+    return w_E - b_E

@@ -1,32 +1,40 @@
 import numpy as np
 import csv
 import total_effect
-import central_effect 
-import factor3
+import central_effect
+import diag_control
+import vertical_control
+import material_count
 
-#file_path = "filtered_lichess/filtered_lichess_small.csv"
-file_path = "filtered_lichess_small.csv"
+file_path = "filtered_lichess/filtered_lichess_small.csv"
 with open(file_path, 'r') as file:
     lines = file.readlines()[1:]
     with open("factors_proc.csv", mode="w",newline='',encoding='utf-8') as out_file:
         writer = csv.writer(out_file)
-        header = ["ID","FEN","1","2","3","4","5","6","7"]
+        header = ["ID","FEN","1","2","3","4","5","6","7","side"]
         writer.writerow(header)
-        row_num = 0
+        # row_num = 0
         for row in lines:
-            if row_num == 0:
-                row_num += 1
-                continue 
+            # if row_num == 0:
+                # row_num += 1
+                # continue
             row_array = row.split(',')
             FEN = row_array[1]
             bp = ""
+            c = 0
             for char in FEN:
                 if char=='"':
                     continue
                 elif char == " ":
+                    side = FEN[c+1]
+                    if side == 'b':
+                        side = 'w'
+                    else: 
+                        side = 'b'                    
                     break
                 else:
                     bp+=char
+                c += 1
             # print(bp)
             bp = bp.split('/')
             # print(bp)
@@ -44,12 +52,12 @@ with open(file_path, 'r') as file:
                     j+=1
                 i+=1
             # print(matrix)
-            # coords = np.array([4,6])
+            factor_1 = vertical_control.vertical_count(matrix)
             factor_2 = central_effect.central_effect(matrix)
-            factor_7 = total_effect.total_effect(matrix) 
-            factor_3 = factor3.total_control(matrix) 
-            print(factor_3)
-            data = [row_array[0],row_array[1],"N/A",str(factor_2),"N/A","N/A","N/A","N/A",str(factor_7)]
+            factor_3 = diag_control.total_control(matrix)
+            factor_6 = material_count.material_count(matrix)
+            factor_7 = total_effect.total_effect(matrix)  
+            data = [row_array[0],row_array[1],str(factor_1),str(factor_2),str(factor_3),"N/A","N/A",str(factor_6),str(factor_7),side]
             writer.writerow(data)
             break
 
