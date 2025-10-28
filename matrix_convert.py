@@ -5,6 +5,8 @@ import central_effect
 import diag_control
 import vertical_control
 import material_count
+import space
+import adv_knights
 
 file_path = "filtered_lichess/filtered_lichess_small.csv"
 with open(file_path, 'r') as file:
@@ -28,9 +30,9 @@ with open(file_path, 'r') as file:
                 elif char == " ":
                     side = FEN[c+1]
                     if side == 'b':
-                        side = 'w'
+                        side = '0'
                     else: 
-                        side = 'b'                    
+                        side = '1'                    
                     break
                 else:
                     bp+=char
@@ -55,9 +57,11 @@ with open(file_path, 'r') as file:
             factor_1 = vertical_control.vertical_count(matrix)
             factor_2 = central_effect.central_effect(matrix)
             factor_3 = diag_control.total_control(matrix)
+            factor_4 = adv_knights.knight_count(matrix)
+            factor_5 = space.pawn_space(matrix)
             factor_6 = material_count.material_count(matrix)
             factor_7 = total_effect.total_effect(matrix)  
-            data = [row_array[0],row_array[1],str(factor_1),str(factor_2),str(factor_3),"N/A","N/A",str(factor_6),str(factor_7),side]
+            data = [row_array[0],row_array[1],str(factor_1),str(factor_2),str(factor_3),str(factor_4),str(factor_5),str(factor_6),str(factor_7),side]
             writer.writerow(data)
-            break
+            # break
 
