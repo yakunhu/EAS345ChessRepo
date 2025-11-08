@@ -8,10 +8,10 @@ import material_count
 import space
 import adv_knights
 
-file_path = "filtered_lichess/filtered_lichess_small.csv"
+file_path = "filtered_lichess/eval_db_filtered.csv"
 with open(file_path, 'r') as file:
     lines = file.readlines()[1:]
-    with open("factors_proc.csv", mode="w",newline='',encoding='utf-8') as out_file:
+    with open("eval_db_processed(mat_min).csv", mode="w",newline='',encoding='utf-8') as out_file:
         writer = csv.writer(out_file)
         header = ["ID","FEN","1","2","3","4","5","6","7","side"]
         writer.writerow(header)
@@ -21,22 +21,23 @@ with open(file_path, 'r') as file:
                 # row_num += 1
                 # continue
             row_array = row.split(',')
-            FEN = row_array[1]
+            FEN = row_array[0]
             bp = ""
-            c = 0
-            for char in FEN:
+            for i, char in enumerate(FEN):
                 if char=='"':
                     continue
                 elif char == " ":
-                    side = FEN[c+1]
+                    # side = FEN[i+1]
+                    side = row_array[2]
+                    side = side.replace('"','').strip()
+                    # print("Side = " + side)
                     if side == 'b':
-                        side = '0'
+                        side = '0' # reverse the side to move for Puzzle FENs
                     else: 
                         side = '1'                    
                     break
                 else:
                     bp+=char
-                c += 1
             # print(bp)
             bp = bp.split('/')
             # print(bp)
@@ -60,6 +61,8 @@ with open(file_path, 'r') as file:
             factor_4 = adv_knights.knight_count(matrix)
             factor_5 = space.pawn_space(matrix)
             factor_6 = material_count.material_count(matrix)
+            if factor_6 == None:
+                continue
             factor_7 = total_effect.total_effect(matrix)  
             data = [row_array[0],row_array[1],str(factor_1),str(factor_2),str(factor_3),str(factor_4),str(factor_5),str(factor_6),str(factor_7),side]
             writer.writerow(data)
