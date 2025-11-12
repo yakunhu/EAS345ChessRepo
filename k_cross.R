@@ -2,39 +2,33 @@ library(WVPlots)
 library(pROC)
 library(PRROC)
 
-compare_drop1_structure <- function(
-    train_path = "filtered_lichess/eval_db_filtered_train[1].csv",
-    validate_path = "filtered_lichess/eval_db_filtered_validate[1].csv",
-    factors = paste0("Factor_", 1:7),
+# Revised: k-fold (file-based) evaluation that keeps all metric calculations
+compare_cv_structure <- function(
+    train_path_template = "filtered_lichess/eval_db_filtered_train[1].csv",
+    validate_path_template = "filtered_lichess/eval_db_filtered_validate[1].csv",
     thresh = 0.5,
-    rank_by = c("val_auc", "val_accuracy", "val_f1"),
+    factors = paste0("Factor_", 1:7),
+    k = 5,
     make_plots = FALSE
 ) {
-  rank_by <- match.arg(rank_by)
-  
-  # Load data
-  dt <- read.csv(train_path)
-  dv <- read.csv(validate_path)
-  
-  # Helper to build formula text from factors
+  # Helper to build formula text from factors (always full model here)
   build_form <- function(fs) as.formula(paste("side ~", paste(fs, collapse = " + ")))
+  form <- build_form(factors)
   
-  # Candidate models: full + drop-one per factor
-  candidates <- list(
-    list(name = "full", dropped = NA_character_, fs = factors)
-  )
-  for (f in factors) {
-    candidates[[length(candidates) + 1]] <- list(
-      name = paste0("drop_", f), dropped = f, fs = setdiff(factors, f)
-    )
+  # store per-fold results
+  fold_results <- list()
+  
+  # log-likelihood helper
+  loglikelihood <- function(y, py) {
+    sum(y * log(py) + (1 - y) * log(1 - py))
   }
   
-  # Storage for results
-  results <- list()
-  
-  # Loop over each candidate model
-  for (cand in candidates) {
-    form <- build_form(cand$fs)
+  for (i in seq_len(k)) {
+    train_path <- gsub("\\[1\\]", paste0("[", i, "]"), train_path_template)
+    validate_path <- gsub("\\[1\\]", paste0("[", i, "]"), validate_path_template)
+    
+    dt <- read.csv(train_path)
+    dv <- read.csv(validate_path)
     
     # ---- Fit model ----
     model <- glm(form, family = binomial(link = logit), data = dt)
@@ -42,12 +36,11 @@ compare_drop1_structure <- function(
     # ---- TRAIN predictions ----
     dt$pred_prob <- predict(model, newdata = dt, type = "response")
     if (make_plots) {
-      DoubleDensityPlot(dt, "pred_prob", "side", title = "Distribution of side predictions (train)")
+      DoubleDensityPlot(dt, "pred_prob", "side", title = paste0("Distribution of side predictions (train) - fold ", i))
     }
     dt$pred_class <- ifelse(dt$pred_prob >= thresh, 1, 0)
     dt$pred_class <- factor(dt$pred_class, levels = c(0,1))
     
-    # Train confusion + metrics
     conf_mat_tr <- table(Actual = dt$side, Predicted = dt$pred_class)
     accuracy_tr <- sum(diag(conf_mat_tr)) / sum(conf_mat_tr)
     precision_tr <- conf_mat_tr[2,2]/(conf_mat_tr[2,2]+conf_mat_tr[1,2])
@@ -83,36 +76,23 @@ compare_drop1_structure <- function(
                    curve = FALSE)
     pr_auc_val <- pr$auc.integral
     
-    # Log-likelihood helpers 
-    loglikelihood <- function(y, py) {
-      sum(y * log(py) + (1 - y) * log(1 - py))
-    }
-    
-    # Deviance values
     null_dev_model <- model$null.deviance
     resid_dev_model <- model$deviance
-    
-    # Fisher iterations from model
     fisher_iter <- model$iter
-    
-    # AIC
     model_aic <- AIC(model)
     
-    # Pseudo R^2 (McFadden's)
     pseudo_r2_train <- 1 - (resid_dev_model / null_dev_model)
     
-    # Validation pseudo R^2 using deviance computed from validation set
     testy <- as.numeric(dv$side)
     pnull_test <- mean(testy)
     null_dev_test <- -2 * loglikelihood(testy, pnull_test)
     resid_dev_test <- -2 * loglikelihood(testy, dv$pred_prob)
     pseudo_r2_val <- 1 - (resid_dev_test / null_dev_test)
     
-    # Assemble a result row
-    results[[length(results) + 1]] <- data.frame(
-      model = cand$name,
-      dropped = ifelse(is.na(cand$dropped), "(none)", cand$dropped),
-      n_factors = length(cand$fs),
+    fold_results[[i]] <- data.frame(
+      model = paste0("fold_", i),
+      dropped = "(none)",
+      n_factors = length(factors),
       train_accuracy = accuracy_tr,
       train_precision = precision_tr,
       train_recall = recall_tr,
@@ -139,29 +119,31 @@ compare_drop1_structure <- function(
     )
   }
   
-  out <- do.call(rbind, results)
+  combined <- do.call(rbind, fold_results)
+  num_cols <- sapply(combined, is.numeric)
+  averaged <- as.list(colMeans(combined[, num_cols, drop = FALSE], na.rm = TRUE))
   
-  # Simple ranking (structure only; uses existing metrics)
-  ord <- switch(rank_by,
-                val_auc = order(-out$val_auc, -out$val_pr_auc),
-                val_accuracy = order(-out$val_accuracy, -out$val_auc),
-                val_f1 = {
-                  f1 <- with(out, ifelse((val_precision + val_recall) == 0,
-                                         NA_real_, 2 * val_precision * val_recall / (val_precision + val_recall)))
-                  order(-f1, -out$val_auc)
-                })
-  out <- out[ord, , drop = FALSE]
-  rownames(out) <- NULL
-  return(out)
+  result_row <- data.frame(
+    model = "full_cv",
+    dropped = "(none)",
+    n_factors = length(factors),
+    stringsAsFactors = FALSE
+  )
+  
+  for (nm in names(combined)[num_cols]) {
+    result_row[[nm]] <- averaged[[nm]]
+  }
+  
+  return(result_row)
 }
 
 # ---- call ----
-res <- compare_drop1_structure(
-  train_path = "filtered_lichess/eval_db_filtered_train[1].csv",
-  validate_path = "filtered_lichess/eval_db_filtered_validate[1].csv",
-  factors = paste0("Factor_", 1:7),
+res <- compare_cv_structure(
+  train_path_template = "filtered_lichess/eval_db_filtered_train[1].csv",
+  validate_path_template = "filtered_lichess/eval_db_filtered_validate[1].csv",
   thresh = 0.5,
-  rank_by = "val_auc",
+  factors = paste0("Factor_", 1:7),
+  k = 5,
   make_plots = FALSE
 )
 print(res)
