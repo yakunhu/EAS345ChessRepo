@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chess Probability Checker</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>Chess Probability Checker</h1>
+      <p class="subtitle">Enter your FEN string below:</p>
+
+      <form method="POST" action="/analyze">
+        <input type="text" name="fen" placeholder="Enter FEN here" required />
+        <button type="submit">Analyze</button>
+      </form>
+
+      <div class="tutorial">
+        <h2>How to get your FEN string:</h2>
+        <ol>
+            <li>Go to the <a href="https://lichess.org/editor" target="_blank">Lichess Board Editor</a>.</li>
+            <li>Set up your chess position just how you want it.</li>
+            <li>Look below the board and you’ll see a box labeled <strong>“FEN”</strong>.</li>
+            <li>Copy the code inside that box. That’s your FEN string!</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

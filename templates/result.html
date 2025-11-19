@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Analysis Result</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>Analysis Result</h1>
+      <p class="subtitle" >FEN:</p>
+      <p><code>{{ fen }}</code></p>
+        <div class="tutorial">
+          <div style="text-align: center;">
+              {% if result.prob_black > result.prob_white %}
+                <h2>Black has the advantage — {{ result.prob_black }}%</h2>
+                <p style = "color: #07367d; margin-bottom: 10px;">Prabability of White - {{ result.prob_white }}% </p>
+              {% elif result.prob_white > result.prob_black %}
+                <h2>White has the advantage — {{ result.prob_white }}%</h2>
+                <p style = "color: #07367d; margin-bottom: 10px;" >Prabability of Black - {{ result.prob_black }}% </p>
+              {% else %}
+                 <h2>Equal chances — {{ result.prob_black }}% / {{ result.prob_white }}%</p>
+              {% endif %}
+            </div>
+          <h3>Factor Values:</h3>
+            <ol>
+              {% for f in result.factors_info %}
+              <li style = "margin-bottom: 15px;">{{ f.name }} : {{ f.value }} </li>
+              {% endfor %}
+            </ol>
+        </div>
+        <p><a href="{{ url_for('index') }}">Analyze another FEN</a></p>
+    </div>
+  </div>
+</body>
+</html>
