@@ -17,6 +17,6 @@ def knight_count(matrix):
             if matrix[i][j] == "n":
                 b_E += 1
 
-    print(w_E)
-    print(b_E)
+    #print(w_E)
+    #print(b_E)
     return w_E - b_E

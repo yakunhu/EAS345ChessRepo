@@ -29,11 +29,8 @@ def fen_to_matrix(fen):
                 j += int(sq)-1
             else:
                 matrix[i, j] = sq
-                j += 1
+            j += 1
         i += 1
-
-    # Fill any remaining empty entries with ''
-    #matrix[matrix == None] = ''
     return matrix
 
 def analyze_fen(fen):

@@ -14,7 +14,7 @@ def pawn_space(matrix):
             # black pawn starts on row 1   
             elif piece == "p":      
                 b_sum += i - 1      
-    print("white sum: ", w_sum)
-    print("black sum: ", b_sum)
-    print("total: ")
+    #print("white sum: ", w_sum)
+    #print("black sum: ", b_sum)
+    #print("total: ")
     return w_sum - b_sum

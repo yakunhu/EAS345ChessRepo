@@ -38,10 +38,10 @@ with open(file_path, 'r') as file:
                     break
                 else:
                     bp+=char
-            # print(bp)
+            print(bp)
             bp = bp.split('/')
             # print(bp)
-            # print(bp[0])
+            print(bp[0])
             matrix = np.empty((8,8),dtype=str)
             # print(matrix)
             i = 0
@@ -54,7 +54,7 @@ with open(file_path, 'r') as file:
                         matrix[i,j] = sq
                     j+=1
                 i+=1
-            # print(matrix)
+            print(matrix)
             factor_1 = vertical_control.vertical_count(matrix)
             factor_2 = central_effect.central_effect(matrix)
             factor_3 = diag_control.total_control(matrix)
@@ -66,5 +66,12 @@ with open(file_path, 'r') as file:
             factor_7 = total_effect.total_effect(matrix)  
             data = [row_array[0],row_array[1],str(factor_1),str(factor_2),str(factor_3),str(factor_4),str(factor_5),str(factor_6),str(factor_7),side]
             writer.writerow(data)
-            # break
+            print("Factor 1:", factor_1)
+            print("Factor 2:", factor_2)
+            print("Factor 3:", factor_3)
+            print("Factor 4:", factor_4)
+            print("Factor 5:", factor_5)
+            print("Factor 6:", factor_6)
+            print("Factor 7:", factor_7)
+            break
 

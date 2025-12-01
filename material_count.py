@@ -37,8 +37,8 @@ def material_count(matrix):
                         b_M += 1
             j+=1
         i+=1
-    print(w_M)
-    print(b_M)
+    #print(w_M)
+    #print(b_M)
     if w_M < 25 and b_M < 25:
         return None
     else: 
