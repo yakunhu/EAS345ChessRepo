@@ -152,6 +152,7 @@ compare_drop1_structure <- function(
                 })
   out <- out[ord, , drop = FALSE]
   rownames(out) <- NULL
+  view(dt)
   return(out)
 }
 
