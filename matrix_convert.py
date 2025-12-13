@@ -1,17 +1,19 @@
 import numpy as np
 import csv
-import total_effect
-import central_effect
-import diag_control
-import vertical_control
-import material_count
-import space
-import adv_knights
+from matrix_convert_helpers import (
+    total_effect,
+    central_effect,
+    diag_control,
+    vertical_control,
+    material_count,
+    space,
+    adv_knights
+)
 
 file_path = "filtered_lichess/eval_db_filtered.csv"
 with open(file_path, 'r') as file:
     lines = file.readlines()[1:]
-    with open("eval_db_processed(mat_min).csv", mode="w",newline='',encoding='utf-8') as out_file:
+    with open("filtered_lichess/eval_db_processed.csv", mode="w",newline='',encoding='utf-8') as out_file:
         writer = csv.writer(out_file)
         header = ["ID","FEN","1","2","3","4","5","6","7","side"]
         writer.writerow(header)
@@ -73,5 +75,5 @@ with open(file_path, 'r') as file:
             print("Factor 5:", factor_5)
             print("Factor 6:", factor_6)
             print("Factor 7:", factor_7)
-            break
+            # break
 

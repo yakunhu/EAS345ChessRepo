@@ -1,0 +1,268 @@
+# Packages
+library(randomForest)
+library(xgboost)
+library(pROC)
+library(PRROC)
+
+train_path    <- "../filtered_lichess/eval_db_filtered_train[1].csv"
+validate_path <- "../filtered_lichess/eval_db_filtered_validate[1].csv"
+
+# ----------------- helpers -----------------
+
+factors <- paste0("Factor_", 1:7)
+thresh  <- 0.5
+
+# metric helper for one dataset (train or validate)
+compute_metrics <- function(y, p, thresh = 0.5, k_params = length(factors) + 1) {
+  p <- pmin(pmax(p, 1e-15), 1 - 1e-15)   # avoid log(0)
+  
+  y_class <- ifelse(p >= thresh, 1, 0)
+  tab <- table(Actual = y, Predicted = y_class)
+  # ensure 2x2 with rows/cols 0,1
+  all_levels <- c("0","1")
+  if (!all(all_levels %in% rownames(tab))) {
+    miss <- setdiff(all_levels, rownames(tab))
+    for (lv in miss) tab <- rbind(tab, setNames(c(0,0), colnames(tab)))
+    rownames(tab) <- all_levels
+  }
+  if (!all(all_levels %in% colnames(tab))) {
+    miss <- setdiff(all_levels, colnames(tab))
+    for (lv in miss) tab <- cbind(tab, setNames(c(0,0), lv))
+    tab <- tab[, all_levels]
+  }
+  
+  TN <- tab["0","0"]; FP <- tab["0","1"]
+  FN <- tab["1","0"]; TP <- tab["1","1"]
+  
+  acc  <- (TP + TN) / sum(tab)
+  prec <- ifelse((TP + FP) > 0, TP / (TP + FP), NA_real_)
+  rec  <- ifelse((TP + FN) > 0, TP / (TP + FN), NA_real_)
+  f1   <- ifelse(!is.na(prec + rec) && (prec + rec) > 0,
+                 2 * prec * rec / (prec + rec), NA_real_)
+  prev <- mean(y == 1)
+  enrich <- ifelse(prev > 0, prec / prev, NA_real_)
+  
+  auc  <- as.numeric(pROC::roc(y, p, quiet = TRUE)$auc)
+  pr   <- PRROC::pr.curve(scores.class0 = p[y == 1],
+                          scores.class1 = p[y == 0],
+                          curve = FALSE)$auc.integral
+  
+  # deviance / pseudo-R2 / AIC (approximate)
+  loglik <- sum(y * log(p) + (1 - y) * log(1 - p))
+  p_null <- mean(y)
+  loglik_null <- sum(y * log(p_null) + (1 - y) * log(1 - p_null))
+  null_dev  <- -2 * loglik_null
+  resid_dev <- -2 * loglik
+  pseudo_r2 <- 1 - (resid_dev / null_dev)
+  aic       <- 2 * k_params - 2 * loglik
+  
+  list(
+    accuracy      = acc,
+    precision     = prec,
+    recall        = rec,
+    enrichment    = enrich,
+    f1            = f1,
+    auc           = auc,
+    pr_auc        = pr,
+    null_dev      = null_dev,
+    resid_dev     = resid_dev,
+    pseudo_r2     = pseudo_r2,
+    aic           = aic
+  )
+}
+
+# ----------------- load data -----------------
+
+train <- read.csv(train_path)
+validate <- read.csv(validate_path)
+
+x_train <- as.matrix(train[ , factors])
+x_val   <- as.matrix(validate[ , factors])
+
+y_train_num <- train$side
+y_val_num   <- validate$side
+
+y_train_fac <- factor(y_train_num, levels = c(0,1))
+
+# ----------------- Random Forest (tuned) -----------------
+
+rf_model <- randomForest(
+  x = x_train,
+  y = y_train_fac,
+  ntree    = 300,
+  mtry     = 5,
+  nodesize = 50,
+  maxnodes = 200
+)
+
+rf_train_prob <- predict(rf_model, x_train, type = "prob")[,"1"]
+rf_val_prob   <- predict(rf_model, x_val,   type = "prob")[,"1"]
+
+rf_train_m <- compute_metrics(y_train_num, rf_train_prob)
+rf_val_m   <- compute_metrics(y_val_num,   rf_val_prob)
+
+# ----------------- XGBoost -----------------
+
+dtrain <- xgb.DMatrix(data = x_train, label = y_train_num)
+dval   <- xgb.DMatrix(data = x_val,   label = y_val_num)
+
+xgb_params <- list(
+  objective = "binary:logistic",
+  eval_metric = "logloss",
+  max_depth = 3,
+  eta = 0.1,
+  subsample = 0.8,
+  colsample_bytree = 0.8
+)
+
+xgb_model <- xgb.train(
+  params  = xgb_params,
+  data    = dtrain,
+  nrounds = 100,
+  verbose = 0
+)
+
+xgb_train_prob <- predict(xgb_model, dtrain)
+xgb_val_prob   <- predict(xgb_model, dval)
+
+xgb_train_m <- compute_metrics(y_train_num, xgb_train_prob)
+xgb_val_m   <- compute_metrics(y_val_num,   xgb_val_prob)
+
+# ----------------- Logistic Regression (GLM) -----------------
+
+form <- as.formula(paste("side ~", paste(factors, collapse = " + ")))
+glm_model <- glm(form, data = train, family = binomial())
+
+glm_train_prob <- predict(glm_model, newdata = train, type = "response")
+glm_val_prob   <- predict(glm_model, newdata = validate, type = "response")
+
+glm_train_m <- compute_metrics(y_train_num, glm_train_prob, k_params = length(factors) + 1)
+glm_val_m   <- compute_metrics(y_val_num,   glm_val_prob,   k_params = length(factors) + 1)
+
+# overwrite training deviance/AIC/pseudo-R2 with exact glm values
+glm_train_m$null_dev   <- glm_model$null.deviance
+glm_train_m$resid_dev  <- glm_model$deviance
+glm_train_m$aic        <- glm_model$aic
+glm_train_m$pseudo_r2  <- 1 - (glm_model$deviance / glm_model$null.deviance)
+glm_fisher_iter        <- glm_model$iter
+
+# ROC curve
+roc_glm <- roc(validate$side, glm_val_prob)
+# plot ROC curve
+plot(
+  roc_glm,
+  col = "blue",
+  lwd = 2,
+  main = "ROC Curve – Logistic Regression",
+  legacy.axes = TRUE
+)
+
+# add AUC to the plot
+auc_val <- auc(roc_glm)
+legend(
+  "bottomright",
+  legend = paste("AUC =", round(auc_val, 4)),
+  col = "blue",
+  lwd = 2,
+  bty = "n"
+)
+
+# ----------------- comparison table -----------------
+
+models_comp <- rbind(
+  data.frame(
+    model = "random_forest",
+    dropped = "(none)",
+    n_factors = length(factors),
+    
+    train_accuracy   = rf_train_m$accuracy,
+    train_precision  = rf_train_m$precision,
+    train_recall     = rf_train_m$recall,
+    train_enrichment = rf_train_m$enrichment,
+    train_f1         = rf_train_m$f1,
+    train_auc        = rf_train_m$auc,
+    train_pr_auc     = rf_train_m$pr_auc,
+    
+    val_accuracy   = rf_val_m$accuracy,
+    val_precision  = rf_val_m$precision,
+    val_recall     = rf_val_m$recall,
+    val_enrichment = rf_val_m$enrichment,
+    val_f1         = rf_val_m$f1,
+    val_auc        = rf_val_m$auc,
+    val_pr_auc     = rf_val_m$pr_auc,
+    
+    null_dev_model = rf_train_m$null_dev,
+    resid_dev_model = rf_train_m$resid_dev,
+    null_dev_test  = rf_val_m$null_dev,
+    resid_dev_test = rf_val_m$resid_dev,
+    
+    fisher_iterations = NA_integer_,
+    aic = rf_train_m$aic,
+    train_pseudo_r2 = rf_train_m$pseudo_r2,
+    val_pseudo_r2   = rf_val_m$pseudo_r2
+  ),
+  data.frame(
+    model = "xgboost",
+    dropped = "(none)",
+    n_factors = length(factors),
+    
+    train_accuracy   = xgb_train_m$accuracy,
+    train_precision  = xgb_train_m$precision,
+    train_recall     = xgb_train_m$recall,
+    train_enrichment = xgb_train_m$enrichment,
+    train_f1         = xgb_train_m$f1,
+    train_auc        = xgb_train_m$auc,
+    train_pr_auc     = xgb_train_m$pr_auc,
+    
+    val_accuracy   = xgb_val_m$accuracy,
+    val_precision  = xgb_val_m$precision,
+    val_recall     = xgb_val_m$recall,
+    val_enrichment = xgb_val_m$enrichment,
+    val_f1         = xgb_val_m$f1,
+    val_auc        = xgb_val_m$auc,
+    val_pr_auc     = xgb_val_m$pr_auc,
+    
+    null_dev_model = xgb_train_m$null_dev,
+    resid_dev_model = xgb_train_m$resid_dev,
+    null_dev_test  = xgb_val_m$null_dev,
+    resid_dev_test = xgb_val_m$resid_dev,
+    
+    fisher_iterations = NA_integer_,
+    aic = xgb_train_m$aic,
+    train_pseudo_r2 = xgb_train_m$pseudo_r2,
+    val_pseudo_r2   = xgb_val_m$pseudo_r2
+  ),
+  data.frame(
+    model = "logistic_regression",
+    dropped = "(none)",
+    n_factors = length(factors),
+    
+    train_accuracy   = glm_train_m$accuracy,
+    train_precision  = glm_train_m$precision,
+    train_recall     = glm_train_m$recall,
+    train_enrichment = glm_train_m$enrichment,
+    train_f1         = glm_train_m$f1,
+    train_auc        = glm_train_m$auc,
+    train_pr_auc     = glm_train_m$pr_auc,
+    
+    val_accuracy   = glm_val_m$accuracy,
+    val_precision  = glm_val_m$precision,
+    val_recall     = glm_val_m$recall,
+    val_enrichment = glm_val_m$enrichment,
+    val_f1         = glm_val_m$f1,
+    val_auc        = glm_val_m$auc,
+    val_pr_auc     = glm_val_m$pr_auc,
+    
+    null_dev_model = glm_train_m$null_dev,
+    resid_dev_model = glm_train_m$resid_dev,
+    null_dev_test  = glm_val_m$null_dev,
+    resid_dev_test = glm_val_m$resid_dev,
+    
+    fisher_iterations = glm_fisher_iter,
+    aic = glm_train_m$aic,
+    train_pseudo_r2 = glm_train_m$pseudo_r2,
+    val_pseudo_r2   = glm_val_m$pseudo_r2
+  )
+)
+
+models_comp

@@ -4,8 +4,8 @@ library(PRROC)
 
 # Revised: k-fold (file-based) evaluation that keeps all metric calculations
 compare_cv_structure <- function(
-    train_path_template = "filtered_lichess/eval_db_filtered_train[1].csv",
-    validate_path_template = "filtered_lichess/eval_db_filtered_validate[1].csv",
+    train_path_template = "../filtered_lichess/eval_db_filtered_train[1].csv",
+    validate_path_template = "../filtered_lichess/eval_db_filtered_validate[1].csv",
     thresh = 0.5,
     factors = paste0("Factor_", 1:7),
     k = 5,
@@ -32,29 +32,6 @@ compare_cv_structure <- function(
     
     # ---- Fit model ----
     model <- glm(form, family = binomial(link = logit), data = dt)
-    
-    # ---- TRAIN predictions ----
-    dt$pred_prob <- predict(model, newdata = dt, type = "response")
-    if (make_plots) {
-      DoubleDensityPlot(dt, "pred_prob", "side", title = paste0("Distribution of side predictions (train) - fold ", i))
-    }
-    dt$pred_class <- ifelse(dt$pred_prob >= thresh, 1, 0)
-    dt$pred_class <- factor(dt$pred_class, levels = c(0,1))
-    
-    conf_mat_tr <- table(Actual = dt$side, Predicted = dt$pred_class)
-    accuracy_tr <- sum(diag(conf_mat_tr)) / sum(conf_mat_tr)
-    precision_tr <- conf_mat_tr[2,2]/(conf_mat_tr[2,2]+conf_mat_tr[1,2])
-    recall_tr <- conf_mat_tr[2,2]/(conf_mat_tr[2,2]+conf_mat_tr[2,1])
-    enrichment_tr <- precision_tr/mean(as.numeric(dt$side))
-    f1_tr <- (2*precision_tr*recall_tr)/(precision_tr+recall_tr)
-    
-    roc_tr <- roc(dt$side, dt$pred_prob)
-    auc_tr <- as.numeric(auc(roc_tr))
-    
-    pr_tr <- pr.curve(scores.class0 = dt$pred_prob[dt$side==1],
-                      scores.class1 = dt$pred_prob[dt$side==0],
-                      curve = FALSE)
-    pr_auc_tr <- pr_tr$auc.integral
     
     # ---- VALIDATION predictions ----
     dv$pred_prob <- predict(model, newdata = dv, type = "response")
@@ -93,13 +70,6 @@ compare_cv_structure <- function(
       model = paste0("fold_", i),
       dropped = "(none)",
       n_factors = length(factors),
-      train_accuracy = accuracy_tr,
-      train_precision = precision_tr,
-      train_recall = recall_tr,
-      train_enrichment = enrichment_tr,
-      train_f1 = f1_tr,
-      train_auc = auc_tr,
-      train_pr_auc = pr_auc_tr,
       val_accuracy = accuracy,
       val_precision = precision,
       val_recall = recall,
@@ -139,8 +109,8 @@ compare_cv_structure <- function(
 
 # ---- call ----
 res <- compare_cv_structure(
-  train_path_template = "filtered_lichess/eval_db_filtered_train[1].csv",
-  validate_path_template = "filtered_lichess/eval_db_filtered_validate[1].csv",
+  train_path_template = "../filtered_lichess/eval_db_filtered_train[1].csv",
+  validate_path_template = "../filtered_lichess/eval_db_filtered_validate[1].csv",
   thresh = 0.5,
   factors = paste0("Factor_", 1:7),
   k = 5,

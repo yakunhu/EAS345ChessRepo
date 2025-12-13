@@ -3,8 +3,8 @@ library(pROC)
 library(PRROC)
 
 compare_drop1_structure <- function(
-    train_path = "filtered_lichess/eval_db_filtered_train[1].csv",
-    validate_path = "filtered_lichess/eval_db_filtered_validate[1].csv",
+    train_path = "../filtered_lichess/eval_db_filtered_train[1].csv",
+    validate_path = "../filtered_lichess/eval_db_filtered_validate[1].csv",
     factors = paste0("Factor_", 1:7),
     thresh = 0.5,
     rank_by = c("val_auc", "val_accuracy", "val_f1"),
@@ -158,8 +158,8 @@ compare_drop1_structure <- function(
 
 # ---- call ----
 res <- compare_drop1_structure(
-  train_path = "filtered_lichess/eval_db_filtered_train[1].csv",
-  validate_path = "filtered_lichess/eval_db_filtered_validate[1].csv",
+  train_path = "../filtered_lichess/eval_db_filtered_train[1].csv",
+  validate_path = "../filtered_lichess/eval_db_filtered_validate[1].csv",
   factors = paste0("Factor_", 1:7),
   thresh = 0.5,
   rank_by = "val_auc",
